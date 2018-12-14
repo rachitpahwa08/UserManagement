@@ -99,7 +99,7 @@ router.post('/addcompany',function(req,res){
       terms_file:terms_file
       });
 
-      let user_check_query=`select * from company_login where email='${newCompany.registered_email}'`;
+      let user_check_query=`select * from company_info where name='${newCompany.company_name}'`;
       console.log(user_check_query);
       connetion.query(user_check_query,function(err,result){
         if(err) throw err;
@@ -118,18 +118,23 @@ router.post('/addcompany',function(req,res){
                connetion.query(createCompanyQuery,function(err,result){
                  if(err) throw err;
                  console.log("Company Created "+result.message+result.warningCount+result.affectedRows);
-                 let createLoginQuery=`insert into company_login(email,reg_number,password,company_id) values('${newCompany.registered_email}','${newCompany.registered_number}','${newCompany.password}',(select company_id from company_info where name='${newCompany.company_name}'))`;
+                 let createLoginQuery=`insert into company_users(user_email,user_name,user_contact,password,company_id) values('${newCompany.person_email}','${newCompany.person}','${newCompany.registered_number}','${newCompany.password}',(select company_id from company_info where name='${newCompany.company_name}'))`;
                  console.log(newCompany);
                  console.log(createLoginQuery);
                  connetion.query(createLoginQuery,function(err,result){
                     if(err){console.log(err);throw err;}
                     console.log("Company Login Created "+result.message+result.warningCount+result.affectedRows);
-                    let commercialDetailsQuery=`insert into commercial_details(asset_manage_rate,free_subscription,billing_cycle,billing_day,equipshare_charges,credit_limit,contract_details,penalty_clause,terms,gst_no,tin,company_id) values('${newCompany.asset_management_rates}','${newCompany.free_subscription}','${newCompany.billing_cycle}','${newCompany.billing_day}','${newCompany.equipshare_charges}','${newCompany.credit_limit}','${newCompany.contract_details}','${newCompany.penalty_clause}','${newCompany.terms}','${newCompany.gstin}','${newCompany.tin}',(select company_id from company_info where name='${newCompany.company_name}'))`;
+                    let setAdminQuery=`insert into company_admins values((select company_id from company_info where name='${newCompany.company_name}'),(select user_id from company_users where user_email='${newCompany.person_email}'))`;
+                    connetion.query(setAdminQuery,function(err,result){
+                        if(err){console.log(err);throw err;}
+                        console.log("Company Admin Created "+result.message+result.warningCount+result.affectedRows);
+                        let commercialDetailsQuery=`insert into commercial_details(asset_manage_rate,free_subscription,billing_cycle,billing_day,equipshare_charges,credit_limit,contract_details,penalty_clause,terms,gst_no,tin,company_id) values('${newCompany.asset_management_rates}','${newCompany.free_subscription}','${newCompany.billing_cycle}','${newCompany.billing_day}','${newCompany.equipshare_charges}','${newCompany.credit_limit}','${newCompany.contract_details}','${newCompany.penalty_clause}','${newCompany.terms}','${newCompany.gstin}','${newCompany.tin}',(select company_id from company_info where name='${newCompany.company_name}'))`;
                    console.log(commercialDetailsQuery);
                     connetion.query(commercialDetailsQuery,function(err,result){
                       if(err){console.log(err);throw err;}
                       console.log("Company Commercial Details Created "+result.message+result.warningCount+result.affectedRows);
                       res.json({msg:'Company created'});
+                    });
                     });
                  });
                });
@@ -138,5 +143,93 @@ router.post('/addcompany',function(req,res){
          }   
       });
     }
+});
+router.get('/getcompany',function(req,res){
+  let getCompanyQuery=`select * from company_info as c inner join commercial_details as d on c.company_id=d.company_id`;
+  connetion.query(getCompanyQuery,function(err,result){
+    if(err){ console.log(err);throw err;}
+    console.log(result);
+    res.json({result});
+  });
+});
+
+router.post('/addcompanyadmin',function(req,res){
+  let admin_name=req.body.admin_name;
+  let admin_email=req.body.admin_email;
+  let admin_contact=req.body.admin_contact;
+  let admin_password=req.body.password;
+  let company_name=req.body.company_name;
+  let password2=req.body.password2;
+
+
+  let newAdmin=({
+    admin_name:admin_name,
+    admin_email:admin_email,
+    admin_contact:admin_contact,
+    admin_password:admin_password,
+    company_name:company_name
+  });
+
+  bcrypt.genSalt(10,function(err,salt){
+      if(err) throw err;
+      bcrypt.hash(newAdmin.admin_password,salt,function(err,hash){
+        if(err) throw err;
+        newAdmin.admin_password=hash;
+        let createAdminQuery=`insert into company_users(user_name,user_email,user_contact,company_id,password) values('${newAdmin.admin_name}','${newAdmin.admin_email}','${newAdmin.admin_contact}',(select company_id from company_info where name='${newAdmin.company_name}'),'${newAdmin.admin_password}')`;
+        connetion.query(createAdminQuery,function(err,result){
+          if(err){console.log(err); throw err;}
+          console.log("User Created "+result.message+result.warningCount+result.affectedRows);
+          let setAdminQuery=`insert into company_admins values((select company_id from company_info where name='${newAdmin.company_name}'),(select user_id from company_users where user_email='${newAdmin.admin_email}'))`;
+          connetion.query(setAdminQuery,function(err,result){
+            if(err){console.log(err);throw err;}
+            console.log("Admin Created "+result.message+result.warningCount+result.affectedRows);
+            res.json({
+              msg:'Admin Created'
+            });
+          });
+        });
+      });
+  });
+
+});
+router.post('/assignadmin',function(req,res){
+  let email=req.body.email;
+  let assignAdminQuery=`insert into company_admins values((select company_id from company_users where user_email='${email}'),(select user_id from company_users where user_email='${email}'))`;
+  connetion.query(assignAdminQuery,function(err,result){
+      if(err){console.log(err);throw err;}
+      console.log("Admin Created "+result.message+result.warningCount+result.affectedRows);
+  });
+});
+
+router.post('/addcompanyuser',function(req,res){
+  let user_name=req.body.user_name;
+  let user_email=req.body.user_email;
+  let user_contact=req.body.user_contact;
+  let user_password=req.body.password;
+  let company_name=req.body.company_name;
+  let password2=req.body.password2;
+  
+  let newUser=({
+    user_name:user_name,
+    user_email:user_email,
+    user_contact:user_contact,
+    user_password:user_password,
+    company_name:company_name
+  });
+  bcrypt.genSalt(10,function(err,salt){
+    if(err) throw err;
+    bcrypt.hash(newUser.user_password,salt,function(err,hash){
+      if(err) throw err;
+      newUser.user_password=hash;
+      let createAdminQuery=`insert into company_users(user_name,user_email,user_contact,company_id,password) values('${newUser.user_name}','${newUser.user_email}','${newUser.user_contact}',(select company_id from company_info where name='${newUser.company_name}'),'${newUser.user_password}')`;
+      connetion.query(createAdminQuery,function(err,result){
+        if(err){console.log(err); throw err;}
+        console.log("User Created "+result.message+result.warningCount+result.affectedRows);
+        res.json({
+          msg:'User Created'
+        });
+      });
+    });
+});
 });
 module.exports = router;
