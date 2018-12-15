@@ -26,7 +26,7 @@ app.use(expressValidator());
 
 
 app.use('/api/', indexRouter);
-app.use('/users', usersRouter);
+app.use('/api/company/', usersRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
@@ -41,7 +41,7 @@ app.use(function(err, req, res, next) {
 
   // render the error page
   res.status(err.status || 500);
-  res.render('error');
+  res.json(res.locals.message);
 });
 app.use(expressValidator({
   errorFormatter: function(param, msg, value) {
