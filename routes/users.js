@@ -186,6 +186,52 @@ router.post('/login',function(req,res){
     });
   }
 });
+router.post('/addsite',isAuthenticated,function(req,res){
+ console.log(res.locals);
+  if(res.locals.admin)
+  {
+    let site_name=req.body.site_name;
+    let site_lat=req.body.site_lat;
+    let site_long=req.body.site_long;
+    let site_address=req.body.site_address;
+    let site_pincode=req.body.site_pincode;
+    let company_name=req.body.company_name;
+
+    req.checkBody('site_name','site_name cannot be empty').notEmpty();
+    req.checkBody('site_lat','site_lat cannot be empty').notEmpty();
+    req.checkBody('site_long','site_long cannot be empty').notEmpty();
+    req.checkBody('site_address','site_address cannot be empty').notEmpty();
+    req.checkBody('site_pincode','site_pincode cannot be empty').notEmpty();
+    req.checkBody('company_name','company_name cannot be empty').notEmpty();
+
+    let errors=req.validationErrors();
+    if (errors) res.json({error:errors});
+    else{
+        let companyCheck=`select company_id from company_info where name='${company_name}'`;
+        connetion.query(companyCheck,function(err,result){
+          if(err){console.log(err);throw err;}
+          if(result.length<=0){res.json({msg:'No company with this name is registered'});}
+          else{ 
+              console.log("result"+result[0]);  
+              let company_id=result[0].company_id; 
+             let createSiteQuery=`insert into site(site_name,lat,longitude,site_address,pincode,company_id) values('${site_name}','${site_lat}','${site_long}','${site_address}','${site_pincode}','${company_id}')`;
+              connetion.query(createSiteQuery,function(err,result){
+              if(err){console.log(err);throw err;}
+              console.log("Site Created "+result.message+result.warningCount+result.affectedRows);
+              res.json({
+                msg:'Site Created'
+              });
+              });
+            }
+        });
+      } 
+  }
+  else{
+    res.json({
+      msg:'Not Authorized'
+    });
+  }
+});
 function isAuthenticated(req, res, next){
   if(req.headers['authorization']){
       jwt.verify(req.headers['authorization'], secret, function(err, decoded){
